@@ -1,6 +1,3 @@
-// The package is provided at runtime; this suppresses the editor error when
-// its optional type declarations are not available in the current workspace.
-// @ts-expect-error react-native-svg may not expose declarations to TypeScript
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 type IconProps = { size?: number; color?: string };

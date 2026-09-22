@@ -1,18 +1,25 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors } from "../theme";
-import { Screen, Student, AlertItem } from "../types";
-import { INITIAL_STUDENTS, INITIAL_ALERTS, ALERT_POOL } from "../data";
-import { IGrid, IMonitor, IBell, IUser } from "../components/Icons";
+import { IBell, IGrid, IMonitor, IUser } from "../src/components/Icons";
+import { ALERT_POOL, INITIAL_ALERTS, INITIAL_STUDENTS } from "../src/data";
+import { colors } from "../src/theme";
+import { AlertItem, Screen, Student } from "../src/types";
 
-import Dashboard from "../screens/Dashboard";
-import Monitor from "../screens/Monitor";
-import AlertsScreen from "../screens/AlertsScreen";
-import Profile from "../screens/Profile";
-import StudentDetail from "../screens/StudentDetail";
+import AlertsScreen from "../src/screens/AlertsScreen";
+import Dashboard from "../src/screens/Dashboard";
+import Monitor from "../src/screens/Monitor";
+import Profile from "../src/screens/Profile";
+import StudentDetail from "../src/screens/StudentDetail";
 
 let alertIdCounter = 10;
 
@@ -42,7 +49,9 @@ export default function Home() {
       ...prev.slice(0, 14),
     ]);
     setStudents((prev) =>
-      prev.map((s) => (s.id === student.id ? { ...s, status: pick.severity } : s)),
+      prev.map((s) =>
+        s.id === student.id ? { ...s, status: pick.severity } : s,
+      ),
     );
   }, [students]);
 
@@ -55,7 +64,9 @@ export default function Home() {
     const t = setInterval(() => {
       setStudents((prev) =>
         prev.map((s) =>
-          s.status === "resting" ? s : { ...s, reps: s.reps < s.targetReps ? s.reps + 1 : 0 },
+          s.status === "resting"
+            ? s
+            : { ...s, reps: s.reps < s.targetReps ? s.reps + 1 : 0 },
         ),
       );
     }, 3000);
@@ -64,10 +75,14 @@ export default function Home() {
 
   const resolveAlert = (id: string) => {
     const alert = alerts.find((a) => a.id === id);
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)));
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)),
+    );
     if (alert) {
       setStudents((prev) =>
-        prev.map((s) => (s.id === alert.studentId ? { ...s, status: "ok" } : s)),
+        prev.map((s) =>
+          s.id === alert.studentId ? { ...s, status: "ok" } : s,
+        ),
       );
     }
   };
@@ -101,10 +116,17 @@ export default function Home() {
           {screen === "monitor" && (
             <Monitor students={students} onSelectStudent={setSelectedStudent} />
           )}
-          {screen === "alerts" && <AlertsScreen alerts={alerts} onResolve={resolveAlert} />}
-          {screen === "profile" && <Profile students={students} onLogout={logout} />}
+          {screen === "alerts" && (
+            <AlertsScreen alerts={alerts} onResolve={resolveAlert} />
+          )}
+          {screen === "profile" && (
+            <Profile students={students} onLogout={logout} />
+          )}
           {selectedStudent && (
-            <StudentDetail student={selectedStudent} onClose={() => setSelectedStudent(null)} />
+            <StudentDetail
+              student={selectedStudent}
+              onClose={() => setSelectedStudent(null)}
+            />
           )}
         </View>
 
@@ -112,7 +134,11 @@ export default function Home() {
           {NAV.map((item) => {
             const isActive = screen === item.id;
             const badge =
-              item.id === "alerts" ? unresolvedCount : item.id === "monitor" ? errorCount : 0;
+              item.id === "alerts"
+                ? unresolvedCount
+                : item.id === "monitor"
+                  ? errorCount
+                  : 0;
             const color = isActive ? colors.primary : colors.mutedForeground;
             return (
               <TouchableOpacity

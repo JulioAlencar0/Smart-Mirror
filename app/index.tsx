@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import LoginScreen from "../screens/LoginScreen";
+import LoginScreen from "../src/screens/LoginScreen";
 
 export default function Index() {
   return (
