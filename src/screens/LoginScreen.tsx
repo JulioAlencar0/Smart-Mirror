@@ -1,19 +1,52 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
+import { IEye, IEyeOff, LogoMark } from "../components/Icons";
 import { colors, fonts } from "../theme";
-import { LogoMark, IEye, IEyeOff } from "../components/Icons";
 
-export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
+// Os valores seguem o ENUM tipo_perfil_enum do banco ('ALUNO' | 'PERSONAL')
+export type Perfil = "PERSONAL" | "ALUNO";
+
+const PERFIS: { value: Perfil; label: string }[] = [
+  { value: "PERSONAL", label: "Personal" },
+  { value: "ALUNO", label: "Aluno" },
+];
+
+function AppleIcon({
+  size = 18,
+  color = "#fff",
+}: {
+  size?: number;
+  color?: string;
+}) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        fill={color}
+        d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
+      />
+    </Svg>
+  );
+}
+
+export default function LoginScreen({
+  onLogin,
+  onGoToRegister,
+}: {
+  onLogin: (perfil: Perfil) => void;
+  onGoToRegister?: () => void;
+}) {
+  const [perfil, setPerfil] = useState<Perfil>("PERSONAL");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -29,7 +62,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      onLogin();
+      onLogin(perfil);
     }, 1400);
   };
 
@@ -58,6 +91,40 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <Text style={styles.welcomeSub}>
             Acesse sua conta para monitorar seus alunos
           </Text>
+
+          <Text style={styles.label}>Tipo de conta</Text>
+          <View style={styles.perfilRow}>
+            {PERFIS.map((p) => {
+              const ativo = perfil === p.value;
+              return (
+                <TouchableOpacity
+                  key={p.value}
+                  onPress={() => setPerfil(p.value)}
+                  activeOpacity={0.8}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: ativo }}
+                  style={[styles.perfilBtn, ativo && styles.perfilBtnActive]}
+                >
+                  <View
+                    style={[
+                      styles.radioOuter,
+                      ativo && styles.radioOuterActive,
+                    ]}
+                  >
+                    {ativo && <View style={styles.radioInner} />}
+                  </View>
+                  <Text
+                    style={[
+                      styles.perfilText,
+                      ativo && styles.perfilTextActive,
+                    ]}
+                  >
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           <Text style={styles.label}>E-mail</Text>
           <TextInput
@@ -117,7 +184,11 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
             disabled={loading}
             style={[
               styles.loginBtn,
-              { backgroundColor: loading ? "rgba(217,28,28,0.5)" : colors.primary },
+              {
+                backgroundColor: loading
+                  ? "rgba(217,28,28,0.5)"
+                  : colors.primary,
+              },
             ]}
           >
             {loading ? (
@@ -142,14 +213,14 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
               <Text style={styles.socialText}>Google</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialBtn}>
-              <Text style={styles.socialIcon}></Text>
+              <AppleIcon size={18} color={colors.foreground} />
               <Text style={styles.socialText}>Apple</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.registerRow}>
             <Text style={styles.registerText}>Não tem conta? </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={onGoToRegister}>
               <Text style={styles.registerLink}>Cadastrar-se</Text>
             </TouchableOpacity>
           </View>
@@ -162,6 +233,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   hero: {
+    marginTop: 60,
     height: 220,
     alignItems: "center",
     justifyContent: "center",
@@ -196,6 +268,45 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 10,
   },
+  perfilRow: { flexDirection: "row", gap: 12 },
+  perfilBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 13,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.card,
+  },
+  perfilBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: "rgba(217,28,28,0.12)",
+  },
+  radioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOuterActive: { borderColor: colors.primary },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  perfilText: {
+    color: colors.secondaryForeground,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  perfilTextActive: { color: colors.foreground },
   input: {
     backgroundColor: colors.card,
     borderWidth: 1.5,
