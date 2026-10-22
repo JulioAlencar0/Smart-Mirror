@@ -29,3 +29,10 @@ export interface AlertItem {
   resolved: boolean;
   detail: string;
 }
+export interface SessaoHoje {
+  id: number;
+  name: string;
+  exercise: string;
+  time: string;
+  done: boolean;
+}

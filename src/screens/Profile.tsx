@@ -1,56 +1,138 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Switch, StyleSheet } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import SubPage from "../components/SubPage";
+import {
+  Configuracoes,
+  getUsuario,
+  obterConfiguracoes,
+  resumoPerfil,
+  salvarConfiguracoes,
+} from "../services/api";
 import { colors, fonts } from "../theme";
 import { Student, SubPageId } from "../types";
-import SubPage from "../components/SubPage";
 import AlunosPage from "./AlunosPage";
 import PlanoPage from "./PlanoPage";
 import SuportePage from "./SuportePage";
 
+function formatarNome(nome: string) {
+  return nome
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
 export default function Profile({
   students,
   onLogout,
+  onStudentsChanged,
 }: {
   students: Student[];
   onLogout: () => void;
+  onStudentsChanged?: () => Promise<void> | void;
 }) {
-  const [subPage, setSubPage] = useState<SubPageId>(null);
-  const [notifications, setNotifications] = useState(true);
-  const [vibrate, setVibrate] = useState(true);
-  const [sound, setSound] = useState(false);
+  const usuario = getUsuario();
+  const nomeExibido = formatarNome(usuario?.nome ?? "");
+  const inicial = nomeExibido.charAt(0);
+  const cargo = `Personal Trainer${usuario?.cref ? ` · ${usuario.cref}` : ""}`;
 
-  const toggles = [
+  const [subPage, setSubPage] = useState<SubPageId>(null);
+  const [config, setConfig] = useState<Configuracoes>({
+    notificacoes_erro: true,
+    vibrar_alerta: true,
+    som_alerta: false,
+  });
+  const [sessoesMes, setSessoesMes] = useState<number | null>(null);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    obterConfiguracoes()
+      .then(setConfig)
+      .catch((e) => setErro(e.message));
+    resumoPerfil()
+      .then((r) => setSessoesMes(r.sessoes_mes))
+      .catch(() => {});
+  }, []);
+
+  // Atualiza na tela na hora e grava no banco; se falhar, desfaz
+  const alterar = async (campo: keyof Configuracoes, valor: boolean) => {
+    const anterior = config;
+    const novo = { ...config, [campo]: valor };
+    setConfig(novo);
+    setErro("");
+    try {
+      await salvarConfiguracoes(novo);
+    } catch (e: any) {
+      setConfig(anterior);
+      setErro(e.message);
+    }
+  };
+
+  const toggles: {
+    label: string;
+    sub: string;
+    val: boolean;
+    set: (v: boolean) => void;
+  }[] = [
     {
       label: "Notificações de erro",
       sub: "Receber quando aluno errar execução",
-      val: notifications,
-      set: setNotifications,
+      val: config.notificacoes_erro,
+      set: (v) => alterar("notificacoes_erro", v),
     },
     {
       label: "Vibrar no alerta",
       sub: "Vibração ao detectar erro crítico",
-      val: vibrate,
-      set: setVibrate,
+      val: config.vibrar_alerta,
+      set: (v) => alterar("vibrar_alerta", v),
     },
-    { label: "Som de alerta", sub: "Áudio ao receber notificação", val: sound, set: setSound },
+    {
+      label: "Som de alerta",
+      sub: "Áudio ao receber notificação",
+      val: config.som_alerta,
+      set: (v) => alterar("som_alerta", v),
+    },
   ];
 
-  const accountItems: { label: string; sub: string; page: SubPageId; icon: string }[] = [
+  const accountItems: {
+    label: string;
+    sub: string;
+    page: SubPageId;
+    icon: string;
+  }[] = [
     {
       label: "Meus Alunos",
-      sub: `${students.length} alunos cadastrados`,
+      sub: `${students.length} ${students.length === 1 ? "aluno cadastrado" : "alunos cadastrados"}`,
       page: "alunos",
       icon: "👥",
     },
-    { label: "Plano & Assinatura", sub: "Plano Pro · R$ 89,90/mês", page: "plano", icon: "⚡" },
-    { label: "Suporte", sub: "Chat, FAQ e contato", page: "suporte", icon: "🛟" },
+    {
+      label: "Plano & Assinatura",
+      sub: "Plano Pro · R$ 89,90/mês",
+      page: "plano",
+      icon: "⚡",
+    },
+    {
+      label: "Suporte",
+      sub: "Chat, FAQ e contato",
+      page: "suporte",
+      icon: "🛟",
+    },
   ];
 
   return (
     <View style={{ flex: 1 }}>
       {subPage === "alunos" && (
         <SubPage title="Meus Alunos" onClose={() => setSubPage(null)}>
-          <AlunosPage students={students} />
+          <AlunosPage students={students} onAdded={onStudentsChanged} />
         </SubPage>
       )}
       {subPage === "plano" && (
@@ -67,15 +149,17 @@ export default function Profile({
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>D</Text>
+            <Text style={styles.avatarText}>{inicial}</Text>
           </View>
-          <Text style={styles.name}>Diego Martins</Text>
-          <Text style={styles.role}>Personal Trainer · CREF 012345-G/SP</Text>
+          <Text style={styles.name}>{nomeExibido}</Text>
+          <Text style={styles.role}>{cargo}</Text>
           <View style={styles.statsRow}>
             {[
               { v: String(students.length), l: "Alunos" },
-              { v: "48", l: "Sessões/mês" },
-              { v: "4.9★", l: "Avaliação" },
+              {
+                v: sessoesMes === null ? "—" : String(sessoesMes),
+                l: "Sessões/mês",
+              },
             ].map((s) => (
               <View key={s.l} style={{ alignItems: "center" }}>
                 <Text style={styles.statValue}>{s.v}</Text>
@@ -87,6 +171,7 @@ export default function Profile({
 
         <View style={styles.notifCard}>
           <Text style={styles.cardLabel}>Alertas & Notificações</Text>
+          {!!erro && <Text style={styles.erroText}>{erro}</Text>}
           {toggles.map((item, i) => (
             <View
               key={item.label}
@@ -110,10 +195,15 @@ export default function Profile({
         </View>
 
         <View style={styles.accountCard}>
-          <Text style={[styles.cardLabel, { paddingHorizontal: 16, paddingTop: 16, marginBottom: 4 }]}>
+          <Text
+            style={[
+              styles.cardLabel,
+              { paddingHorizontal: 16, paddingTop: 16, marginBottom: 4 },
+            ]}
+          >
             Conta
           </Text>
-          {accountItems.map((item, i) => (
+          {accountItems.map((item) => (
             <TouchableOpacity
               key={item.label}
               onPress={() => setSubPage(item.page)}
@@ -134,12 +224,22 @@ export default function Profile({
           ))}
           <TouchableOpacity
             onPress={onLogout}
-            style={[styles.accountRow, { borderTopWidth: 1, borderTopColor: colors.border }]}
+            style={[
+              styles.accountRow,
+              { borderTopWidth: 1, borderTopColor: colors.border },
+            ]}
           >
-            <View style={[styles.accountIcon, { backgroundColor: "rgba(217,28,28,0.12)" }]}>
+            <View
+              style={[
+                styles.accountIcon,
+                { backgroundColor: "rgba(217,28,28,0.12)" },
+              ]}
+            >
               <Text style={{ fontSize: 17 }}>🚪</Text>
             </View>
-            <Text style={[styles.accountLabel, { color: colors.primary }]}>Sair da conta</Text>
+            <Text style={[styles.accountLabel, { color: colors.primary }]}>
+              Sair da conta
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -152,7 +252,12 @@ export default function Profile({
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16, alignItems: "center" },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+    alignItems: "center",
+  },
   avatar: {
     width: 64,
     height: 64,
@@ -185,6 +290,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 12,
   },
+  erroText: { color: colors.danger, fontSize: 12, marginBottom: 8 },
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,17 +1,18 @@
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { IEye, IEyeOff, LogoMark } from "../components/Icons";
+import { cadastrar } from "../services/api";
 import { colors, fonts } from "../theme";
 
 // Os valores seguem o ENUM tipo_perfil_enum do banco ('ALUNO' | 'PERSONAL')
@@ -63,7 +64,7 @@ export default function RegisterScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handle = () => {
+  const handle = async () => {
     if (!nome.trim() || !email.trim() || !password) {
       setError("Preencha nome, e-mail e senha.");
       return;
@@ -79,16 +80,24 @@ export default function RegisterScreen({
     setError("");
     setLoading(true);
 
-    // TODO: trocar este setTimeout pela chamada à API (ex.: POST /usuarios)
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await cadastrar({
+        nome: nome.trim(),
+        email: email.trim(),
+        senha: password,
+        perfil,
+      });
       onRegister({
         nome: nome.trim(),
         email: email.trim(),
         senha: password,
         perfil,
       });
-    }, 1400);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

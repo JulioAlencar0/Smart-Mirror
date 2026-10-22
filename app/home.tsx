@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Platform,
   StatusBar,
@@ -11,9 +11,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { IBell, IGrid, IMonitor, IUser } from "../src/components/Icons";
-import { ALERT_POOL, INITIAL_ALERTS, INITIAL_STUDENTS } from "../src/data";
+import { useAlertas } from "../src/hooks/useAlertas";
+import { useAlunos } from "../src/hooks/useAlunos";
+import { useSessoesHoje } from "../src/hooks/useSessoesHoje";
+import { getUsuario, sair } from "../src/services/api";
 import { colors } from "../src/theme";
-import { AlertItem, Screen, Student } from "../src/types";
+import { Screen, Student } from "../src/types";
 
 import AlertsScreen from "../src/screens/AlertsScreen";
 import Dashboard from "../src/screens/Dashboard";
@@ -21,78 +24,42 @@ import Monitor from "../src/screens/Monitor";
 import Profile from "../src/screens/Profile";
 import StudentDetail from "../src/screens/StudentDetail";
 
-let alertIdCounter = 10;
-
-export default function Home() {
+export default function Home({ onLogout }: { onLogout?: () => void }) {
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
-  const [alerts, setAlerts] = useState<AlertItem[]>(INITIAL_ALERTS);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-  const triggerAlert = useCallback(() => {
-    const pick = ALERT_POOL[Math.floor(Math.random() * ALERT_POOL.length)];
-    const eligible = students.filter((s) => s.status !== "resting");
-    if (!eligible.length) return;
-    const student = eligible[Math.floor(Math.random() * eligible.length)];
-    setAlerts((prev) => [
-      {
-        id: `a${++alertIdCounter}`,
-        studentId: student.id,
-        studentName: student.name,
-        exercise: pick.exercise,
-        error: pick.error,
-        severity: pick.severity,
-        time: "agora",
-        resolved: false,
-        detail: pick.detail,
-      },
-      ...prev.slice(0, 14),
-    ]);
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === student.id ? { ...s, status: pick.severity } : s,
-      ),
-    );
-  }, [students]);
+  // Tudo abaixo vem da API e atualiza sozinho
+  const {
+    alerts,
+    loading: loadingAlertas,
+    error: erroAlertas,
+    resolver,
+    recarregar: recarregarAlertas,
+  } = useAlertas();
+  const {
+    students,
+    loading: loadingAlunos,
+    error: erroAlunos,
+    recarregar: recarregarAlunos,
+  } = useAlunos();
+  const { sessoes } = useSessoesHoje();
 
-  useEffect(() => {
-    const t = setInterval(triggerAlert, 12000);
-    return () => clearInterval(t);
-  }, [triggerAlert]);
+  const nomeUsuario = getUsuario()?.nome ?? "";
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.status === "resting"
-            ? s
-            : { ...s, reps: s.reps < s.targetReps ? s.reps + 1 : 0 },
-        ),
-      );
-    }, 3000);
-    return () => clearInterval(t);
-  }, []);
-
-  const resolveAlert = (id: string) => {
-    const alert = alerts.find((a) => a.id === id);
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, resolved: true } : a)),
-    );
-    if (alert) {
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.id === alert.studentId ? { ...s, status: "ok" } : s,
-        ),
-      );
-    }
+  const resolveAlert = async (id: string) => {
+    await resolver(id);
+    recarregarAlunos(); // o status do aluno pode ter voltado para "Correto"
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await sair(); // apaga o token salvo no aparelho
     setScreen("dashboard");
     setSelectedStudent(null);
-    setAlerts(INITIAL_ALERTS);
-    setStudents(INITIAL_STUDENTS);
-    router.replace("/");
+    if (onLogout) {
+      onLogout();
+    } else {
+      router.replace("/");
+    }
   };
 
   const unresolvedCount = alerts.filter((a) => !a.resolved).length;
@@ -111,13 +78,30 @@ export default function Home() {
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
           {screen === "dashboard" && (
-            <Dashboard students={students} alerts={alerts} onNav={setScreen} />
+            <Dashboard
+              students={students}
+              alerts={alerts}
+              sessoes={sessoes}
+              userName={nomeUsuario}
+              onNav={setScreen}
+            />
           )}
           {screen === "monitor" && (
-            <Monitor students={students} onSelectStudent={setSelectedStudent} />
+            <Monitor
+              students={students}
+              loading={loadingAlunos}
+              error={erroAlunos}
+              onSelectStudent={setSelectedStudent}
+            />
           )}
           {screen === "alerts" && (
-            <AlertsScreen alerts={alerts} onResolve={resolveAlert} />
+            <AlertsScreen
+              alerts={alerts}
+              onResolve={resolveAlert}
+              loading={loadingAlertas}
+              error={erroAlertas}
+              onRefresh={recarregarAlertas}
+            />
           )}
           {screen === "profile" && (
             <Profile students={students} onLogout={logout} />

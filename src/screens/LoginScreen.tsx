@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { IEye, IEyeOff, LogoMark } from "../components/Icons";
+import { login } from "../services/api";
 import { colors, fonts } from "../theme";
 
 // Os valores seguem o ENUM tipo_perfil_enum do banco ('ALUNO' | 'PERSONAL')
@@ -53,17 +54,21 @@ export default function LoginScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handle = () => {
+  const handle = async () => {
     if (!email || !password) {
       setError("Preencha e-mail e senha.");
       return;
     }
     setError("");
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const usuario = await login(email.trim(), password, perfil);
+      onLogin(usuario.tipo_perfil);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
       setLoading(false);
-      onLogin(perfil);
-    }, 1400);
+    }
   };
 
   return (

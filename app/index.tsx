@@ -16,8 +16,8 @@ export default function App() {
   }
 
   if (tela === "home") {
-    return <Home />;
-  }
+  return <Home onLogout={() => setTela("login")} />;
+}
 
   return (
     <LoginScreen

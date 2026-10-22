@@ -1,23 +1,49 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { IBell, ICheck, IRun } from "../components/Icons";
 import { colors, fonts } from "../theme";
-import { Student, AlertItem, Screen } from "../types";
-import { ICheck, IRun, IBell } from "../components/Icons";
+import { AlertItem, Screen, SessaoHoje, Student } from "../types";
 
-const SESSIONS = [
-  { name: "Rafael Costa", exercise: "Agachamento + Leg Press", time: "07:00", done: true },
-  { name: "Mariana Lima", exercise: "Supino + Puxada", time: "08:00", done: true },
-  { name: "Juliana Pires", exercise: "Full Body", time: "09:00", done: false },
-  { name: "Thiago Rocha", exercise: "Cardio + Core", time: "10:00", done: false },
+const DIAS = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+];
+const MESES = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
 ];
 
 export default function Dashboard({
   students,
   alerts,
+  sessoes,
+  userName,
   onNav,
 }: {
   students: Student[];
   alerts: AlertItem[];
+  sessoes: SessaoHoje[];
+  userName: string;
   onNav: (s: Screen) => void;
 }) {
   const active = students.filter((s) => s.status !== "resting").length;
@@ -25,15 +51,21 @@ export default function Dashboard({
   const warnings = students.filter((s) => s.status === "warn").length;
   const unresolved = alerts.filter((a) => !a.resolved).length;
 
+  const agora = new Date();
+  const dataTexto = `${DIAS[agora.getDay()]}, ${agora.getDate()} ${MESES[agora.getMonth()]}`;
+  const primeiroNome = userName.split(/[\s_]+/)[0] || "";
+  const nomeBonito =
+    primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1);
+
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.dateText}>Segunda-feira, 31 ago</Text>
-          <Text style={styles.hello}>Olá, Diego 👋</Text>
+          <Text style={styles.dateText}>{dataTexto}</Text>
+          <Text style={styles.hello}>Olá, {nomeBonito} 👋</Text>
         </View>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>D</Text>
+          <Text style={styles.avatarText}>{nomeBonito.charAt(0)}</Text>
         </View>
       </View>
 
@@ -42,8 +74,10 @@ export default function Dashboard({
         style={[
           styles.statusBanner,
           {
-            backgroundColor: errors > 0 ? "rgba(217,28,28,0.10)" : "rgba(48,209,88,0.08)",
-            borderColor: errors > 0 ? "rgba(217,28,28,0.35)" : "rgba(48,209,88,0.25)",
+            backgroundColor:
+              errors > 0 ? "rgba(217,28,28,0.10)" : "rgba(48,209,88,0.08)",
+            borderColor:
+              errors > 0 ? "rgba(217,28,28,0.35)" : "rgba(48,209,88,0.25)",
           },
         ]}
       >
@@ -65,7 +99,8 @@ export default function Dashboard({
               : "Todos os alunos no padrão correto"}
           </Text>
           <Text style={styles.statusSub}>
-            {active} ativos · {warnings} aviso{warnings !== 1 ? "s" : ""} · Toque para monitorar
+            {active} ativos · {warnings} aviso{warnings !== 1 ? "s" : ""} ·
+            Toque para monitorar
           </Text>
         </View>
         <Text style={styles.chevron}>›</Text>
@@ -78,14 +113,19 @@ export default function Dashboard({
           { label: "Avisos", value: warnings, color: colors.warn },
         ].map((c) => (
           <View key={c.label} style={styles.statCard}>
-            <Text style={[styles.statValue, { color: c.color }]}>{c.value}</Text>
+            <Text style={[styles.statValue, { color: c.color }]}>
+              {c.value}
+            </Text>
             <Text style={styles.statLabel}>{c.label}</Text>
           </View>
         ))}
       </View>
 
       {unresolved > 0 && (
-        <TouchableOpacity onPress={() => onNav("alerts")} style={styles.alertBanner}>
+        <TouchableOpacity
+          onPress={() => onNav("alerts")}
+          style={styles.alertBanner}
+        >
           <View style={styles.alertIcon}>
             <IBell size={18} color="#fff" />
           </View>
@@ -103,11 +143,19 @@ export default function Dashboard({
       <View style={styles.sessionsCard}>
         <View style={styles.sessionsHeader}>
           <Text style={styles.sessionsTitle}>Sessões de Hoje</Text>
-          <Text style={styles.sessionsCount}>4 sessões</Text>
+          <Text style={styles.sessionsCount}>
+            {sessoes.length} {sessoes.length === 1 ? "sessão" : "sessões"}
+          </Text>
         </View>
-        {SESSIONS.map((s, i) => (
+
+        {sessoes.length === 0 && (
+          <Text style={[styles.sessionExercise, { padding: 16 }]}>
+            Nenhuma sessão agendada para hoje.
+          </Text>
+        )}
+        {sessoes.map((s, i) => (
           <View
-            key={s.name}
+            key={s.id}
             style={[
               styles.sessionRow,
               i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
@@ -117,7 +165,9 @@ export default function Dashboard({
               style={[
                 styles.sessionIcon,
                 {
-                  backgroundColor: s.done ? "rgba(48,209,88,0.12)" : colors.secondary,
+                  backgroundColor: s.done
+                    ? "rgba(48,209,88,0.12)"
+                    : colors.secondary,
                 },
               ]}
             >
@@ -258,6 +308,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sessionName: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
-  sessionExercise: { color: colors.mutedForeground, fontSize: 12, marginTop: 1 },
+  sessionExercise: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    marginTop: 1,
+  },
   sessionTime: { fontSize: 12, fontWeight: "600" },
 });

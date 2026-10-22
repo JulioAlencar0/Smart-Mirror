@@ -1,16 +1,25 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { IDanger, IWarn } from "../components/Icons";
+import { STATUS_BG, STATUS_COLOR, STATUS_LABEL } from "../data";
 import { colors, fonts } from "../theme";
 import { Student } from "../types";
-import { STATUS_COLOR, STATUS_LABEL, STATUS_BG } from "../data";
-import { IDanger, IWarn } from "../components/Icons";
 
 export default function Monitor({
   students,
   onSelectStudent,
+  loading = false,
+  error = "",
 }: {
   students: Student[];
   onSelectStudent: (s: Student) => void;
+  loading?: boolean;
+  error?: string;
 }) {
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -24,6 +33,19 @@ export default function Monitor({
           <Text style={styles.liveText}>AO VIVO</Text>
         </View>
       </View>
+
+      {!!error && (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>{error}</Text>
+        </View>
+      )}
+      {!loading && !error && students.length === 0 && (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            Nenhum aluno vinculado a você ainda.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.list}>
         {students.map((s) => (
@@ -44,14 +66,18 @@ export default function Monitor({
               },
             ]}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+            >
               <View
                 style={[
                   styles.avatar,
                   { backgroundColor: STATUS_BG[s.status] },
                 ]}
               >
-                <Text style={[styles.avatarText, { color: STATUS_COLOR[s.status] }]}>
+                <Text
+                  style={[styles.avatarText, { color: STATUS_COLOR[s.status] }]}
+                >
                   {s.avatar}
                 </Text>
               </View>
@@ -63,9 +89,17 @@ export default function Monitor({
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
                 <View
-                  style={[styles.badge, { backgroundColor: STATUS_BG[s.status] }]}
+                  style={[
+                    styles.badge,
+                    { backgroundColor: STATUS_BG[s.status] },
+                  ]}
                 >
-                  <Text style={[styles.badgeText, { color: STATUS_COLOR[s.status] }]}>
+                  <Text
+                    style={[
+                      styles.badgeText,
+                      { color: STATUS_COLOR[s.status] },
+                    ]}
+                  >
                     {STATUS_LABEL[s.status]}
                   </Text>
                 </View>
@@ -98,7 +132,9 @@ export default function Monitor({
                 ) : (
                   <IWarn size={14} color={STATUS_COLOR[s.status]} />
                 )}
-                <Text style={[styles.warnText, { color: STATUS_COLOR[s.status] }]}>
+                <Text
+                  style={[styles.warnText, { color: STATUS_COLOR[s.status] }]}
+                >
                   {s.status === "danger"
                     ? "Erro de execução — toque para detalhes"
                     : "Atenção na técnica — verifique"}
@@ -121,6 +157,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  infoBox: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  infoText: { color: colors.mutedForeground, fontSize: 14 },
   title: { color: colors.foreground, fontFamily: fonts.display, fontSize: 18 },
   subtitle: { color: colors.mutedForeground, fontSize: 12, marginTop: 2 },
   liveBadge: {

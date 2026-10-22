@@ -1,22 +1,58 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { ICheck, IDanger, IWarn } from "../components/Icons";
 import { colors, fonts } from "../theme";
 import { AlertItem } from "../types";
-import { IDanger, IWarn, ICheck } from "../components/Icons";
 
 export default function AlertsScreen({
   alerts,
   onResolve,
+  loading = false,
+  error = "",
+  onRefresh,
 }: {
   alerts: AlertItem[];
   onResolve: (id: string) => void;
+  loading?: boolean;
+  error?: string;
+  onRefresh?: () => Promise<void> | void;
 }) {
   const unresolved = alerts.filter((a) => !a.resolved);
   const resolved = alerts.filter((a) => a.resolved);
-  const [expanded, setExpanded] = useState<string | null>(unresolved[0]?.id ?? null);
+  const [expanded, setExpanded] = useState<string | null>(
+    unresolved[0]?.id ?? null,
+  );
+  const [refreshing, setRefreshing] = useState(false);
+
+  const puxar = async () => {
+    setRefreshing(true);
+    await onRefresh?.();
+    setRefreshing(false);
+  };
 
   return (
-    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={{ flex: 1 }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={puxar}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        ) : undefined
+      }
+    >
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Alertas</Text>
@@ -32,13 +68,27 @@ export default function AlertsScreen({
         )}
       </View>
 
-      {unresolved.length === 0 && (
+      {loading && alerts.length === 0 && (
+        <View style={styles.emptyState}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      )}
+
+      {!!error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorBoxText}>{error}</Text>
+        </View>
+      )}
+
+      {!loading && !error && unresolved.length === 0 && (
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
             <Text style={{ fontSize: 28 }}>✓</Text>
           </View>
           <Text style={styles.emptyTitle}>Tudo em ordem!</Text>
-          <Text style={styles.emptySub}>Nenhum alerta pendente no momento.</Text>
+          <Text style={styles.emptySub}>
+            Nenhum alerta pendente no momento.
+          </Text>
         </View>
       )}
 
@@ -53,9 +103,13 @@ export default function AlertsScreen({
                 styles.alertCard,
                 {
                   backgroundColor:
-                    a.severity === "danger" ? "rgba(217,28,28,0.09)" : "rgba(255,159,10,0.08)",
+                    a.severity === "danger"
+                      ? "rgba(217,28,28,0.09)"
+                      : "rgba(255,159,10,0.08)",
                   borderColor:
-                    a.severity === "danger" ? "rgba(217,28,28,0.32)" : "rgba(255,159,10,0.3)",
+                    a.severity === "danger"
+                      ? "rgba(217,28,28,0.32)"
+                      : "rgba(255,159,10,0.3)",
                 },
               ]}
             >
@@ -63,7 +117,13 @@ export default function AlertsScreen({
                 style={{ padding: 16 }}
                 onPress={() => setExpanded(isOpen ? null : a.id)}
               >
-                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    gap: 12,
+                  }}
+                >
                   <View style={[styles.alertIcon, { backgroundColor: color }]}>
                     {a.severity === "danger" ? (
                       <IDanger size={16} color="#fff" />
@@ -72,8 +132,16 @@ export default function AlertsScreen({
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={[styles.studentName, { color }]}>{a.studentName}</Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <Text style={[styles.studentName, { color }]}>
+                        {a.studentName}
+                      </Text>
                       <Text style={styles.timeText}>· {a.time}</Text>
                     </View>
                     <Text style={styles.exerciseText}>{a.exercise}</Text>
@@ -97,7 +165,9 @@ export default function AlertsScreen({
                     style={[styles.resolveBtn, { backgroundColor: color }]}
                   >
                     <ICheck size={16} color="#fff" />
-                    <Text style={styles.resolveBtnText}>Marcar como Resolvido</Text>
+                    <Text style={styles.resolveBtnText}>
+                      Marcar como Resolvido
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -137,6 +207,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  errorBox: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(217,28,28,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(217,28,28,0.35)",
+  },
+  errorBoxText: { color: colors.danger, fontSize: 14 },
   title: { color: colors.foreground, fontFamily: fonts.display, fontSize: 18 },
   subtitle: { color: colors.mutedForeground, fontSize: 12, marginTop: 2 },
   countBadge: {
@@ -148,7 +229,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   countBadgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
-  emptyState: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 40, gap: 10 },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+    gap: 10,
+  },
   emptyIcon: {
     width: 56,
     height: 56,
@@ -157,8 +243,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyTitle: { color: colors.foreground, fontFamily: fonts.display, fontSize: 15 },
-  emptySub: { color: colors.mutedForeground, fontSize: 12, textAlign: "center" },
+  emptyTitle: {
+    color: colors.foreground,
+    fontFamily: fonts.display,
+    fontSize: 15,
+  },
+  emptySub: {
+    color: colors.mutedForeground,
+    fontSize: 12,
+    textAlign: "center",
+  },
   list: { paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
   alertCard: { borderRadius: 20, borderWidth: 1, overflow: "hidden" },
   alertIcon: {
@@ -171,8 +265,17 @@ const styles = StyleSheet.create({
   },
   studentName: { fontSize: 14, fontWeight: "700" },
   timeText: { color: colors.mutedForeground, fontSize: 12 },
-  exerciseText: { color: colors.secondaryForeground, fontSize: 12, marginTop: 2 },
-  errorText: { color: colors.foreground, fontSize: 14, fontWeight: "600", marginTop: 4 },
+  exerciseText: {
+    color: colors.secondaryForeground,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  errorText: {
+    color: colors.foreground,
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 4,
+  },
   chevron: { color: colors.mutedForeground, fontSize: 20 },
   expandedBox: {
     paddingHorizontal: 16,
