@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -10,8 +11,15 @@ import { STATUS_BG, STATUS_COLOR, STATUS_LABEL } from "../data";
 import { colors, fonts } from "../theme";
 import { Student } from "../types";
 
+// ====================================================================
+// CONFIGURE AQUI O IP DA SUA MÁQUINA NA REDE LOCAL (WI-FI)
+// Exemplo: "http://192.168.1.15:8000/status"
+// Se estiver usando o Emulador Android no mesmo PC, use: "http://10.0.2.2:8000/status"
+// ====================================================================
+const API_IA_URL = "http://10.0.2.2:8000/status";
+
 export default function Monitor({
-  students,
+  students: initialStudents = [],
   onSelectStudent,
   loading = false,
   error = "",
@@ -21,6 +29,46 @@ export default function Monitor({
   loading?: boolean;
   error?: string;
 }) {
+  const [students, setStudents] = useState<Student[]>(initialStudents);
+
+  // Sincroniza se a lista de alunos mudar por props externas
+  useEffect(() => {
+    setStudents(initialStudents);
+  }, [initialStudents]);
+
+  // Consulta a API em Python a cada 3 segundos em segundo plano
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(API_IA_URL);
+        if (!response.ok) return;
+
+        const dadosIA = await response.json();
+
+        // Atualiza os dados do aluno em execução no painel
+        setStudents((prevStudents) =>
+          prevStudents.map((s) => {
+            // Atualiza o primeiro aluno ou o aluno que estiver treinando
+            return {
+              ...s,
+              status: dadosIA.status || s.status, // "ok", "warn" ou "danger"
+              exercise: dadosIA.exercise || s.exercise,
+              reps: dadosIA.reps !== undefined ? dadosIA.reps : s.reps,
+              targetReps: dadosIA.targetReps || s.targetReps,
+              sets: dadosIA.sets || s.sets,
+              // Adicionamos a mensagem de feedback da IA
+              feedback: dadosIA.feedback,
+            };
+          }),
+        );
+      } catch (err) {
+        // Silencioso se o servidor de IA estiver reiniciando ou desligado
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -117,7 +165,10 @@ export default function Monitor({
                   style={[
                     styles.progressFill,
                     {
-                      width: `${(s.reps / s.targetReps) * 100}%`,
+                      width: `${Math.min(
+                        100,
+                        (s.reps / (s.targetReps || 1)) * 100,
+                      )}%`,
                       backgroundColor: STATUS_COLOR[s.status],
                     },
                   ]}
@@ -135,9 +186,10 @@ export default function Monitor({
                 <Text
                   style={[styles.warnText, { color: STATUS_COLOR[s.status] }]}
                 >
-                  {s.status === "danger"
-                    ? "Erro de execução — toque para detalhes"
-                    : "Atenção na técnica — verifique"}
+                  {(s as any).feedback ||
+                    (s.status === "danger"
+                      ? "Erro de execução — toque para detalhes"
+                      : "Atenção na técnica — verifique")}
                 </Text>
               </View>
             )}

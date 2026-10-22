@@ -16,7 +16,7 @@ import { useAlunos } from "../src/hooks/useAlunos";
 import { useSessoesHoje } from "../src/hooks/useSessoesHoje";
 import { getUsuario, sair } from "../src/services/api";
 import { colors } from "../src/theme";
-import { Screen, Student } from "../src/types";
+import { Screen } from "../src/types";
 
 import AlertsScreen from "../src/screens/AlertsScreen";
 import Dashboard from "../src/screens/Dashboard";
@@ -26,7 +26,9 @@ import StudentDetail from "../src/screens/StudentDetail";
 
 export default function Home({ onLogout }: { onLogout?: () => void }) {
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
+    null,
+  );
 
   // Tudo abaixo vem da API e atualiza sozinho
   const {
@@ -44,6 +46,10 @@ export default function Home({ onLogout }: { onLogout?: () => void }) {
   } = useAlunos();
   const { sessoes } = useSessoesHoje();
 
+  // Guardamos só o id; assim o detalhe sempre mostra os dados mais recentes
+  const selectedStudent =
+    students.find((s) => s.id === selectedStudentId) ?? null;
+
   const nomeUsuario = getUsuario()?.nome ?? "";
 
   const resolveAlert = async (id: string) => {
@@ -54,7 +60,7 @@ export default function Home({ onLogout }: { onLogout?: () => void }) {
   const logout = async () => {
     await sair(); // apaga o token salvo no aparelho
     setScreen("dashboard");
-    setSelectedStudent(null);
+    setSelectedStudentId(null);
     if (onLogout) {
       onLogout();
     } else {
@@ -91,7 +97,7 @@ export default function Home({ onLogout }: { onLogout?: () => void }) {
               students={students}
               loading={loadingAlunos}
               error={erroAlunos}
-              onSelectStudent={setSelectedStudent}
+              onSelectStudent={(s) => setSelectedStudentId(s.id)}
             />
           )}
           {screen === "alerts" && (
@@ -104,12 +110,18 @@ export default function Home({ onLogout }: { onLogout?: () => void }) {
             />
           )}
           {screen === "profile" && (
-            <Profile students={students} onLogout={logout} />
+            <Profile
+              students={students}
+              onLogout={logout}
+              onStudentsChanged={recarregarAlunos}
+            />
           )}
           {selectedStudent && (
             <StudentDetail
               student={selectedStudent}
-              onClose={() => setSelectedStudent(null)}
+              alerts={alerts}
+              onResolve={resolveAlert}
+              onClose={() => setSelectedStudentId(null)}
             />
           )}
         </View>
@@ -129,7 +141,7 @@ export default function Home({ onLogout }: { onLogout?: () => void }) {
                 key={item.id}
                 onPress={() => {
                   setScreen(item.id);
-                  setSelectedStudent(null);
+                  setSelectedStudentId(null);
                 }}
                 style={styles.navItem}
               >
